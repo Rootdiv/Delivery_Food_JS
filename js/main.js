@@ -29,6 +29,11 @@ let login = localStorage.getItem('gloDeliveryJS');
 const toggleModalAuth = () => {
   modalAuth.classList.toggle('is-open');
   loginInput.removeAttribute('style');
+  if (modalAuth.classList.contains('is-open')) {
+    window.disableScroll();
+  } else {
+    window.enableScroll();
+  }
 };
 
 const logIn = event => {
@@ -69,6 +74,11 @@ const notAuthorized = () => {
   buttonAuth.addEventListener('click', toggleModalAuth);
   closeAuth.addEventListener('click', toggleModalAuth);
   logInForm.addEventListener('submit', logIn);
+  modalAuth.addEventListener('click', event => {
+    if (event.target.matches('.is-open')) {
+      toggleModalAuth();
+    }
+  });
 };
 
 function checkAuth() {
