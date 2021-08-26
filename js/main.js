@@ -12,7 +12,7 @@ const optionSlider = {
 
 const swiper = new window.Swiper('.swiper-container', optionSlider);
 
-const cardButton = document.querySelector('#cart-button');
+const cartButton = document.querySelector('#cart-button');
 const modal = document.querySelector('.modal');
 const closeModal = document.querySelector('.close');
 const cancel = document.querySelector('.clear-cart');
@@ -33,9 +33,26 @@ const restaurantTitle = document.querySelector('.restaurant-title');
 const restaurantRating = document.querySelector('.rating');
 const restaurantPrice = document.querySelector('.price');
 const restaurantCategory = document.querySelector('.category');
+const inputAddress = document.querySelector('.input-address');
 const inputSearch = document.querySelector('.input-search');
+const modalBody = document.querySelector('.modal-body');
+const modalPrice = document.querySelector('.modal-pricetag');
+const buttonClearCart = document.querySelector('.clear-cart');
 
 let login = localStorage.getItem('gloDeliveryJS');
+
+const cart = JSON.parse(localStorage.getItem(`gloDeliveryJS_${login}`)) || [];
+
+const saveCart = () => {
+  localStorage.setItem(`gloDeliveryJS_${login}`, JSON.stringify(cart));
+};
+
+const downloadCart = () => {
+  if (localStorage.getItem(`gloDelivery_${login}`)) {
+    const data = JSON.parse(localStorage.getItem(`gloDelivery_${login}`));
+    cart.push(...data);
+  }
+};
 
 const getData = async url => {
   const response = await fetch(url);
@@ -45,7 +62,6 @@ const getData = async url => {
   return response.json();
 };
 
-
 const validName = str => {
   const regName = /^[a-zA-Z][a-zA-Z0-9-_.]{3,20}$/;
   return regName.test(str);
@@ -53,6 +69,11 @@ const validName = str => {
 
 const toggleModal = () => {
   modal.classList.toggle('is-open');
+  if (modal.classList.contains('is-open')) {
+    window.disableScroll();
+  } else {
+    window.enableScroll();
+  }
 };
 
 const toggleModalAuth = () => {
@@ -65,41 +86,51 @@ const toggleModalAuth = () => {
   }
 };
 
-const logIn = event => {
-  event.preventDefault();
-  if (validName(loginInput.value)) {
-    login = loginInput.value;
-    localStorage.setItem('gloDeliveryJS', login);
-    toggleModalAuth();
-    buttonAuth.removeEventListener('click', toggleModalAuth);
-    closeAuth.removeEventListener('click', toggleModalAuth);
-    logInForm.removeEventListener('submit', logIn);
-    logInForm.reset();
-    checkAuth();
-  } else {
-    loginInput.style.cssText = 'border: 2px solid #ff0000';
-  }
-};
-
-const logOut = () => {
-  login = null;
-  localStorage.removeItem('gloDeliveryJS');
-  userName.removeAttribute('style');
-  buttonOut.removeAttribute('style');
-  buttonAuth.removeAttribute('style');
-  buttonOut.removeEventListener('click', logOut);
-  checkAuth();
+const returnMain = () => {
+  containerPromo.classList.remove('hide');
+  swiper.init(optionSlider);
+  restaurants.classList.remove('hide');
+  menu.classList.add('hide');
 };
 
 const authorized = () => {
+  const logOut = () => {
+    login = null;
+    cart.length = 0;
+    localStorage.removeItem('gloDeliveryJS');
+    userName.removeAttribute('style');
+    buttonOut.removeAttribute('style');
+    buttonAuth.removeAttribute('style');
+    cartButton.removeAttribute('style');
+    buttonOut.removeEventListener('click', logOut);
+    checkAuth();
+    returnMain();
+  };
   userName.textContent = login;
   buttonAuth.style.display = 'none';
   userName.style.display = 'inline';
-  buttonOut.style.display = 'block';
+  buttonOut.style.display = 'flex';
+  cartButton.style.display = 'flex';
   buttonOut.addEventListener('click', logOut);
 };
 
 const notAuthorized = () => {
+  const logIn = event => {
+    event.preventDefault();
+    if (validName(loginInput.value)) {
+      login = loginInput.value;
+      localStorage.setItem('gloDeliveryJS', login);
+      toggleModalAuth();
+      downloadCart();
+      buttonAuth.removeEventListener('click', toggleModalAuth);
+      closeAuth.removeEventListener('click', toggleModalAuth);
+      logInForm.removeEventListener('submit', logIn);
+      logInForm.reset();
+      checkAuth();
+    } else {
+      loginInput.style.cssText = 'border: 2px solid #ff0000';
+    }
+  };
   buttonAuth.addEventListener('click', toggleModalAuth);
   closeAuth.addEventListener('click', toggleModalAuth);
   logInForm.addEventListener('submit', logIn);
@@ -196,6 +227,7 @@ const openGoods = event => {
     if (restaurant) {
       cardsMenu.textContent = '';
       containerPromo.classList.add('hide');
+      swiper.destroy(false);
       restaurants.classList.add('hide');
       menu.classList.remove('hide');
 
@@ -220,10 +252,80 @@ const openGoods = event => {
   }
 };
 
+function addToCart(event) {
+  const target = event.target;
+  const buttonAddToCart = target.closest('.button-add-cart');
+
+  if (buttonAddToCart) {
+    const card = target.closest('.card');
+    const title = card.querySelector('.card-title-reg').textContent;
+    const cost = card.querySelector('.card-price').textContent;
+    const id = card.id;
+
+    const food = cart.find(item => item.id === id);
+
+    if (food) {
+      food.count++;
+    } else {
+      cart.push({
+        title,
+        cost,
+        id,
+        count: 1
+      });
+    }
+    saveCart();
+  }
+}
+
+const renderCart = () => {
+  modalBody.textContent = '';
+  cart.forEach(({
+    title,
+    cost,
+    id,
+    count
+  }) => {
+    const itemCart = `
+      <div class="food-row">
+        <span class="food-name">${title}</span>
+        <strong class="food-price">${cost}</strong>
+        <div class="food-counter">
+          <button class="counter-button counter-minus" data-id=${id}>-</button>
+          <span class="counter">${count}</span>
+          <button class="counter-button counter-plus" data-id=${id}>+</button>
+        </div>
+      </div>
+    `;
+    modalBody.insertAdjacentHTML('afterbegin', itemCart);
+  });
+  const totalPrice = cart.reduce((res, item) => res + (parseFloat(item.cost) * item.count), 0);
+  modalPrice.textContent = totalPrice + ' ₽';
+  saveCart();
+};
+
+function changeCount(event) {
+  const target = event.target;
+
+  if (target.classList.contains('counter-button')) {
+    const food = cart.find(item => item.id === target.dataset.id);
+
+    if (target.classList.contains('counter-minus')) {
+      food.count--;
+      if (!food.count) {
+        cart.splice(cart.indexOf(food), 1);
+      }
+    }
+    if (target.classList.contains('counter-plus')) food.count++;
+
+    renderCart();
+  }
+}
+
 const searchHandler = event => {
   const value = event.target.value.trim();
 
-  if (!value && event.code === 'Enter') {
+  if (!value && event.key === 'Enter') {
     event.target.style.backgroundColor = '#ff0000';
     event.target.value = '';
     setTimeout(() => {
@@ -232,9 +334,9 @@ const searchHandler = event => {
     return;
   }
 
-  if (value.length < 3) {
-    return;
-  }
+  if (!/^[А-Яа-яЁё]$/.test(event.key)) return;
+
+  if (value.length < 3) return;
 
   getData('./db/partners.json')
     .then(data => data.map(partner => partner.products))
@@ -268,23 +370,34 @@ const init = () => {
   getData('../db/partners.json').then(data => {
     data.forEach(createCardRestaurant);
   });
-  cardButton.addEventListener('click', toggleModal);
-  closeModal.addEventListener('click', toggleModal);
-  cancel.addEventListener('click', toggleModal);
-  cardsRestaurants.addEventListener('click', openGoods);
-  logo.addEventListener('click', () => {
-    containerPromo.classList.remove('hide');
-    restaurants.classList.remove('hide');
-    menu.classList.add('hide');
+  cartButton.addEventListener('click', () => {
+    renderCart();
+    toggleModal();
   });
+  buttonClearCart.addEventListener('click', () => {
+    cart.length = 0;
+    renderCart();
+    toggleModal();
+  });
+  modalBody.addEventListener('click', changeCount);
+  cardsMenu.addEventListener('click', addToCart);
+  closeModal.addEventListener('click', toggleModal);
+  cardsRestaurants.addEventListener('click', openGoods);
+  logo.addEventListener('click', returnMain);
   inputSearch.addEventListener('keyup', searchHandler);
+  inputAddress.addEventListener('keyup', searchHandler);
+  modal.addEventListener('click', event => {
+    if (event.target.matches('.is-open')) {
+      toggleModal();
+    }
+  });
   checkAuth();
 };
 
 if (cardsRestaurants) {
   init();
 } else {
-  cardButton.addEventListener('click', toggleModal);
+  cartButton.addEventListener('click', toggleModal);
   closeModal.addEventListener('click', toggleModal);
   cancel.addEventListener('click', toggleModal);
   new window.WOW().init();
