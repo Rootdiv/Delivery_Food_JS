@@ -367,7 +367,7 @@ const searchHandler = event => {
 };
 
 const init = () => {
-  getData('../db/partners.json').then(data => {
+  getData('./db/partners.json').then(data => {
     data.forEach(createCardRestaurant);
   });
   cartButton.addEventListener('click', () => {
